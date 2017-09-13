@@ -3,8 +3,8 @@ from typing import Dict, Any, Optional
 
 import tensorflow as tf
 
-from tfdeeprl.agent import AgentModes
-from tfdeeprl.helpers.replay_memory import Memory
+#from tfdeeprl.agent import AgentModes
+from .replay_memory import Memory
 
 
 def choose_from_array(source, indices, name="choose_from_array"):
@@ -50,6 +50,7 @@ def in_new_graph(original):
     return in_session
 
 
+"""
 def add_replay_memory_training(base_fn, memory_size, batch_size):
     def model_fn(data, mode, params: Dict[str, Any]):
         if mode == AgentModes.TRAIN:
@@ -79,6 +80,7 @@ def add_replay_memory_training(base_fn, memory_size, batch_size):
         return base_fn(data, mode, params=params)
 
     return model_fn
+"""
 
 
 def epsilon_greedy(values: tf.Tensor, epsilon: tf.Tensor, stochastic: tf.Tensor, name=None):
