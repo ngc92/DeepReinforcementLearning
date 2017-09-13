@@ -1,19 +1,9 @@
 import functools
-from typing import Dict, Any, Optional
 
 import tensorflow as tf
 
+
 #from tfdeeprl.agent import AgentModes
-from .replay_memory import Memory
-
-
-def choose_from_array(source, indices, name="choose_from_array"):
-    """ returns [source[i, indices[i]] for i in 1:len(indices)] """
-    with tf.name_scope(name):
-        num_samples = tf.shape(indices)[0]
-        indices     = tf.transpose(tf.stack([tf.cast(tf.range(0, num_samples), indices.dtype), indices]))
-        values      = tf.gather_nd(source, indices)
-    return values
 
 
 def clipping_optimizer(optimizer: tf.train.Optimizer, clip_fn):
@@ -83,19 +73,3 @@ def add_replay_memory_training(base_fn, memory_size, batch_size):
 """
 
 
-def epsilon_greedy(values: tf.Tensor, epsilon: tf.Tensor, stochastic: tf.Tensor, name=None):
-    assert len(values.shape) == 2
-    with tf.name_scope(name, default_name="epsilon_greedy", values=[values, epsilon, stochastic]):
-        with tf.name_scope("batch_size"):
-            batch_size = tf.shape(values)[0]
-
-        greedy = tf.cast(tf.argmax(values, axis=1), tf.int32)
-
-        def eps_greedy():
-            do_greedy = tf.random_uniform((batch_size,), 0.0, 1.0) < epsilon
-            random = tf.random_uniform((batch_size,), minval=0, maxval=values.shape[1], dtype=tf.int32)
-            action = tf.where(condition=do_greedy,
-                              x=greedy,
-                              y=random)
-            return action
-        return tf.cond(stochastic, eps_greedy, lambda: tf.identity(greedy))
