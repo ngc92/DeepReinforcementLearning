@@ -138,7 +138,7 @@ class Memory:
     def _append(self, state: tf.Tensor, action: tf.Tensor, reward: tf.Tensor, terminal: tf.Tensor,
                 next_state: tf.Tensor):
         """
-        Do the actual appending, after all checks have passend and scopes are set
+        Do the actual appending, after all checks have passed and scopes are set
         """
         # perform the simple variable updates. For simplicity we update next_state even
         # if the state is terminal.
