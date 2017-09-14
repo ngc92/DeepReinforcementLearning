@@ -40,18 +40,28 @@ def in_new_graph(original):
     return in_session
 
 
-"""
-def add_replay_memory_training(base_fn, memory_size, batch_size):
-    def model_fn(data, mode, params: Dict[str, Any]):
-        if mode == AgentModes.TRAIN:
-            state = data["observation"]
-            action = data["action"]
-            reward = data["reward"]
-            next = data["next_observation"]
-            terminal = data["terminal"]
+def add_replay_memory(batch_size=None, memory_size=None):
+    def decorator(builder_class: type):
+        from tfdeeprl.helpers import Memory
+        from tfdeeprl.builder import AgentBuilder
 
-            print("REWARD:")
-            print(reward)
+        if not issubclass(builder_class, AgentBuilder):
+            raise TypeError("Expected subclass of AgentBuilder, got {}".format(builder_class))
+
+        default_memory_size = memory_size
+        default_batch_size = batch_size
+
+        old_build_train = builder_class._build_train
+
+        def build_train(self: builder_class, transitions, params):
+            state = transitions["observation"]
+            action = transitions["action"]
+            reward = transitions["reward"]
+            next = transitions["next_observation"]
+            terminal = transitions["terminal"]
+
+            memory_size = params.get("memory_size", default_memory_size)
+            batch_size = params.get("batch_size", default_batch_size)
 
             memory = Memory(memory_size, tuple(state.shape.as_list()), tuple(action.shape.as_list()), action.dtype)
             append_op = memory.append(state=state, action=action, reward=reward,
@@ -61,15 +71,20 @@ def add_replay_memory_training(base_fn, memory_size, batch_size):
             with tf.control_dependencies([append_op]):
                 sample_op = memory.sample(batch_size)
 
-            data["observation"] = sample_op.current
-            data["next_observation"] = sample_op.next
-            data["action"] = sample_op.action
-            data["reward"] = sample_op.reward
-            data["terminal"] = sample_op.terminal
+            sampled_transition = {
+                "observation": sample_op.current,
+                "next_observation": sample_op.next,
+                "action": sample_op.action,
+                "reward": sample_op.reward,
+                "terminal": sample_op.terminal
+            }
 
-        return base_fn(data, mode, params=params)
+            return old_build_train(self, transition=sampled_transition, params=params)
 
-    return model_fn
-"""
+        builder_class._build_train = build_train
+
+        return builder_class
+
+    return decorator
 
 
