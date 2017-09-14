@@ -1,3 +1,4 @@
+from numbers import Number
 from typing import Optional
 
 import tensorflow as tf
@@ -73,15 +74,27 @@ def target_net_update(source_scope, target_scope, tau: Optional, interval: Optio
     :param collection: Adds the resulting operation to these collections. Defaults to `UPDATE_OPS`.
     :return: The update operation.
     """
-    from .scoping import update_from_scope, assign_from_scope
+    from .scoping import update_from_scope, assign_from_scope, absolute_scope_name
     if tau is not None and interval is not None:
         raise ValueError("Cannot specify tau (%s) and interval (%s) at the same time" % (tau, interval))
 
+    if absolute_scope_name(source_scope) == absolute_scope_name(target_scope):
+        raise ValueError("Source and target scope are identical ({})".format(absolute_scope_name(target_scope)))
+
     with tf.name_scope(name, "update_target_net"):
         if tau is not None:
+            if isinstance(tau, Number):
+                if tau < 0 or tau > 1:
+                    raise ValueError("Interpolation parameter must be between 0 and 1, got {}".format(tau))
+
             tau = tf.convert_to_tensor(tau, tf.float32, name="tau")
-            update_target_vars = update_from_scope(source_scope, target_scope, tau)
+            with tf.control_dependencies([tf.Assert(tf.logical_and(0.0 <= tau, 1.0 >= tau), data=[tau])]):
+                update_target_vars = update_from_scope(source_scope, target_scope, tau)
         else:
+            if isinstance(interval, Number):
+                if interval < 1:
+                    raise ValueError("Invalid update interval {} specified".format(interval))
+
             interval = tf.convert_to_tensor(interval, name="interval")
             if not interval.dtype.is_integer:
                 raise TypeError("Update interval has to be of integral type, got {}".format(interval))
@@ -98,4 +111,6 @@ def target_net_update(source_scope, target_scope, tau: Optional, interval: Optio
     for col in collection:
         tf.add_to_collection(col, update_target_vars)
 
-    return update_target_vars
+    # this ensures that we always return a tf.Operation
+    with tf.control_dependencies([update_target_vars]):
+        return tf.no_op()

@@ -10,11 +10,9 @@ def scope_name() -> str:
     return tf.get_variable_scope().name
 
 
-def absolute_scope_name(relative_scope_name) -> str:
-    """Appends parent scope name to `relative_scope_name`"""
-    if scope_name() == "":
-        return relative_scope_name
-    return scope_name() + "/" + relative_scope_name
+def absolute_scope_name(relative_scope) -> str:
+    """Gets the absolute scope corresponding to `relative_scope`"""
+    return absolute_scope(relative_scope).name
 
 
 def absolute_scope(scope) -> tf.VariableScope:
