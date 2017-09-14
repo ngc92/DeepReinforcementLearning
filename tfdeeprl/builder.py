@@ -46,7 +46,7 @@ class AgentBuilder:
         pass
 
     def act(self, observation, params: Optional) -> AgentActSpec:
-        actor = self._build_act(observation, params)
+        actor = self._build_act(observation, params=params)
         if not isinstance(actor, AgentActSpec):
             raise TypeError("_build_act is supposed to return AgentActSpec, got {}".format(actor))
 
@@ -56,7 +56,7 @@ class AgentBuilder:
         return actor
 
     def explore(self, observation, params: Optional) -> AgentActSpec:
-        actor = self._build_explore(observation, params)
+        actor = self._build_explore(observation, params=params)
         if not isinstance(actor, AgentActSpec):
             raise TypeError("_explore is supposed to return AgentActSpec, got {}".format(actor))
 
@@ -67,7 +67,7 @@ class AgentBuilder:
         return actor
 
     def train(self, transition, params: Optional) -> AgentTrainSpec:
-        trainer = self._build_train(transition, params)
+        trainer = self._build_train(transition, params=params)
         if not isinstance(trainer, AgentTrainSpec):
             raise TypeError("_train is supposed to return AgentTrainSpec")
 

@@ -8,15 +8,9 @@ from unittest import mock
 class MockBuilder(AgentBuilder):
     def __init__(self):
         super(MockBuilder, self).__init__()
-
-    def _build_explore(self, observation, params):
-        pass
-
-    def _build_act(self, observation, params):
-        pass
-
-    def _build_train(self, transition, params):
-        pass
+        self._build_explore = mock.Mock()
+        self._build_act = mock.Mock()
+        self._build_train = mock.Mock()
 
 
 @in_new_graph
