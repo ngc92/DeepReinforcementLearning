@@ -118,7 +118,7 @@ def test_target_update_checks_invalid_interval():
 @in_new_graph
 @target_update_fixture
 def test_target_update_soft(monkeypatch):
-    # monkeyparch the update_from_scope function
+    # monkeypatch the update_from_scope function
     check = tf.get_variable("check", (), tf.bool, initializer=tf.constant_initializer(False))
 
     def fake_update_from_scope(source_scope, target_scope, rate, name=None):
@@ -139,7 +139,7 @@ def test_target_update_soft(monkeypatch):
 @in_new_graph
 @target_update_fixture
 def test_target_update_hard(monkeypatch):
-    # monkeyparth the assign_from_scope function
+    # monkeypatch the assign_from_scope function
     counter = tf.get_variable("counter", (), tf.int32, initializer=tf.constant_initializer(0))
 
     def fake_assign_from_scope(source_scope, target_scope, name=None):
@@ -164,3 +164,4 @@ def test_target_update_hard(monkeypatch):
     assert counter.eval() == 2
 
 
+# TODO test that the op is added to the correct collections.

@@ -3,9 +3,6 @@ import functools
 import tensorflow as tf
 
 
-#from tfdeeprl.agent import AgentModes
-
-
 def clipping_optimizer(optimizer: tf.train.Optimizer, clip_fn):
     class ClippingOptimizer(tf.train.Optimizer):
         def __init__(self, base_optimizer: tf.train.Optimizer, clipper):

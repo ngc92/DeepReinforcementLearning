@@ -8,10 +8,10 @@ def choose_from_array(source, indices, name="choose_from_array") -> tf.Tensor:
     """
     returns [source[i, indices[i]] for i in 1:len(indices)]
     """
-    indices = tf.convert_to_tensor(indices, name="indices")
-    source = tf.convert_to_tensor(source, name="indices")
-
     with tf.name_scope(name, values=[indices, source]):
+        indices = tf.convert_to_tensor(indices, name="indices")
+        source = tf.convert_to_tensor(source, name="indices")
+
         num_samples = tf.shape(indices)[0]
         indices     = tf.transpose(tf.stack([tf.cast(tf.range(0, num_samples), indices.dtype), indices]))
         values      = tf.gather_nd(source, indices)
@@ -33,18 +33,18 @@ def epsilon_greedy(values, epsilon, stochastic, name=None, dtype=tf.int32) -> tf
     :raises: TypeError, if stochastic is not of boolean type.
     """
 
-    values = tf.convert_to_tensor(values, name="values")  # type: tf.Tensor
-    values.shape.assert_has_rank(2)
-
-    epsilon = tf.convert_to_tensor(epsilon, dtype=tf.float32, name="epsilon")  # type: tf.Tensor
-    epsilon.shape.assert_has_rank(0)
-
-    stochastic = tf.convert_to_tensor(stochastic, name="stochastic")  # type: tf.Tensor
-    stochastic.shape.assert_has_rank(0)
-    if stochastic.dtype is not tf.bool:
-        raise TypeError("stochastic has to be a boolean.")
-
     with tf.name_scope(name, default_name="epsilon_greedy", values=[values, epsilon, stochastic]):
+        values = tf.convert_to_tensor(values, name="values")  # type: tf.Tensor
+        values.shape.assert_has_rank(2)
+
+        epsilon = tf.convert_to_tensor(epsilon, dtype=tf.float32, name="epsilon")  # type: tf.Tensor
+        epsilon.shape.assert_has_rank(0)
+
+        stochastic = tf.convert_to_tensor(stochastic, name="stochastic")  # type: tf.Tensor
+        stochastic.shape.assert_has_rank(0)
+        if stochastic.dtype is not tf.bool:
+            raise TypeError("stochastic has to be a boolean.")
+
         with tf.name_scope("batch_size"):
             batch_size = tf.shape(values)[0]
 
@@ -81,7 +81,7 @@ def target_net_update(source_scope, target_scope, tau: Optional, interval: Optio
     if absolute_scope_name(source_scope) == absolute_scope_name(target_scope):
         raise ValueError("Source and target scope are identical ({})".format(absolute_scope_name(target_scope)))
 
-    with tf.name_scope(name, "update_target_net"):
+    with tf.name_scope(name, "update_target_net", [tau, interval]):
         if tau is not None:
             if isinstance(tau, Number):
                 if tau < 0 or tau > 1:

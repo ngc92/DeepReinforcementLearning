@@ -118,20 +118,20 @@ class Memory:
         # ensure the variables exists
         self._prepare_variables()
 
-        state = tf.convert_to_tensor(state, tf.float32, name="state")
-        action = tf.convert_to_tensor(action, self._action_type, name="action")
-        reward = tf.convert_to_tensor(reward, tf.float32, name="reward")
-        terminal = tf.convert_to_tensor(terminal, tf.bool, name="terminal")
-        next_state = tf.convert_to_tensor(next_state, tf.float32, name="state")
-
-        _test_static_shape(state, self._state_shape)
-        _test_static_shape(action, self._action_shape)
-        _test_static_shape(reward, ())
-        _test_static_shape(terminal, ())
-        _test_static_shape(next_state, self._state_shape)
-
         # put all ops in a name scope, and verify the input graphs
         with tf.name_scope(name, "append", (state, action, reward, terminal, next_state)), tf.device("/cpu:0"):
+            state = tf.convert_to_tensor(state, tf.float32, name="state")
+            action = tf.convert_to_tensor(action, self._action_type, name="action")
+            reward = tf.convert_to_tensor(reward, tf.float32, name="reward")
+            terminal = tf.convert_to_tensor(terminal, tf.bool, name="terminal")
+            next_state = tf.convert_to_tensor(next_state, tf.float32, name="state")
+
+            _test_static_shape(state, self._state_shape)
+            _test_static_shape(action, self._action_shape)
+            _test_static_shape(reward, ())
+            _test_static_shape(terminal, ())
+            _test_static_shape(next_state, self._state_shape)
+
             return self._append(state, action, reward, terminal, next_state)
 
     def _append(self, state: tf.Tensor, action: tf.Tensor, reward: tf.Tensor, terminal: tf.Tensor,
@@ -177,7 +177,7 @@ class Memory:
             if amount <= 0:
                 raise ValueError("Sampling amount has to be a positive integer, got {}".format(amount))
 
-        with tf.name_scope(name, "sample_replay_memory"), tf.device("/cpu:0"):
+        with tf.name_scope(name, "sample_replay_memory", [amount]), tf.device("/cpu:0"):
             amount_tensor = tf.convert_to_tensor(amount, dtype=tf.int64)
 
             assert_nonempty = tf.assert_greater(self.length, 0, name="assert_non_empty",
