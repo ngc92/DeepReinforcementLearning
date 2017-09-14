@@ -1,3 +1,5 @@
+from typing import Optional
+
 import tensorflow as tf
 
 
@@ -55,3 +57,45 @@ def epsilon_greedy(values, epsilon, stochastic, name=None, dtype=tf.int32) -> tf
                               y=random)
             return action
         return tf.cond(stochastic, eps_greedy, lambda: tf.identity(greedy))
+
+
+def target_net_update(source_scope, target_scope, tau: Optional, interval: Optional, name: Optional = None,
+                      collection=(tf.GraphKeys.UPDATE_OPS,)) -> tf.Operation:
+    """
+    This function creates an Op for updating the target variables in a deep reinforcement learning algorithm.
+    Either overwriting them completely every `interval` steps, or partially with interpolation factor `tau`
+    every step. The passing of time steps is determined by the `global_step` tensor.
+    :param source_scope: Scope of the active net parameters.
+    :param target_scope: Scope of the target net parameters.
+    :param tau: Soft update interpolation factor, or None if hard update is preferred.
+    :param interval: Time interval between target updates, of None if soft updates are preferred.
+    :param name: Name for the op. Defaults to update_target_net.
+    :param collection: Adds the resulting operation to these collections. Defaults to `UPDATE_OPS`.
+    :return: The update operation.
+    """
+    from .scoping import update_from_scope, assign_from_scope
+    if tau is not None and interval is not None:
+        raise ValueError("Cannot specify tau (%s) and interval (%s) at the same time" % (tau, interval))
+
+    with tf.name_scope(name, "update_target_net"):
+        if tau is not None:
+            tau = tf.convert_to_tensor(tau, tf.float32, name="tau")
+            update_target_vars = update_from_scope(source_scope, target_scope, tau)
+        else:
+            interval = tf.convert_to_tensor(interval, name="interval")
+            if not interval.dtype.is_integer:
+                raise TypeError("Update interval has to be of integral type, got {}".format(interval))
+            interval = tf.cast(interval, tf.int64)
+
+            def make_target_update():
+                return assign_from_scope(source_scope, target_scope)
+
+            step = tf.train.get_or_create_global_step()
+
+            update_target_vars = tf.cond(tf.equal(step % interval, 0),
+                                         true_fn=make_target_update, false_fn=lambda: tf.no_op())
+
+    for col in collection:
+        tf.add_to_collection(col, update_target_vars)
+
+    return update_target_vars

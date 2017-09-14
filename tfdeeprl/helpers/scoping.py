@@ -21,6 +21,7 @@ def _get_variables_from_scope(scope, collection):
     with tf.variable_scope(scope) as scope:
         pass
 
+    # include the trailing / to exclude matches by name
     variables = tf.get_collection(collection, scope=scope.name+"/")
 
     return set(filter(lambda x: isinstance(x, tf.Variable), variables))
@@ -52,7 +53,8 @@ def _apply_to_variable_pairs(source, target, operation, log_message="%s <- %s"):
             source_var = source_vars.get(target, None)
             target_var = target_vars[target]
             if source_var is None:
-                logger.warning("Variable %s not found in source variables for target %s", target, target_var.name)
+                logger.warning("Variable '%s' not found in source scope '%s' for target '%s'",
+                               target, source.name, target_var.name)
             else:
                 with tf.name_scope(target):
                     operations.append(operation(source_var, target_var))
@@ -80,6 +82,20 @@ def assign_from_scope(source_scope, target_scope, name=None) -> tf.Operation:
 
 
 def update_from_scope(source_scope, target_scope, rate, name=None) -> tf.Operation:
+    """
+        Assigns all variables in `target_scope`, that are also present in `source_scope`,
+        an interpolated value between their current and their source value. Scopes can be either
+        strings of tf.VariableScope.
+        If a variable is present in `target_scope` but not corresponding variable is found
+        in `source_scope`, a warning is logged.
+        :param source_scope: Scope from which to read the original values.
+        :param target_scope: Scope in which the assignment targets reside.
+        :param rate: Interpolation factor. Zero means no change.
+        :param name: Name for the operation. Defaults to "soft_update"
+        :return: An operation that performs all updates.
+        """
+    rate = tf.convert_to_tensor(rate, name="rate")
+
     def update(source: tf.Variable, target: tf.Variable):
         new_val = tf.constant(1.0 - rate) * target + rate * source
         return target.assign(new_val)
@@ -111,6 +127,7 @@ def copy_variables_to_scope(source_scope, target_scope, trainable=None):
                 newvar = tf.get_variable(name=source_name,
                                          initializer=sources[source_name].initialized_value(),
                                          trainable=trainable)
+                logger.info("copying variable %s to %s", sources[source_name].name, newvar.name)
                 new_variables.append(newvar)
 
     return destination_scope, new_variables
