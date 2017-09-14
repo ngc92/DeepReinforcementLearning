@@ -34,7 +34,7 @@ class Memory:
     >>> sess.run(append_op)
     >>> sess.run(sample_op)
     """
-    def __init__(self, size: int, state_shape: Tuple[int, ...], action_shape: Tuple[int, ...],
+    def __init__(self, size: Integral, state_shape: Tuple[int, ...], action_shape: Tuple[int, ...],
                  action_type: tf.DType=tf.int64, scope=None):
         """
         Create a new ReplayMemory.
@@ -45,6 +45,9 @@ class Memory:
                             Mixing is currently not supported.
         :param scope: Name scope in which to place the variables.
         """
+
+        if not isinstance(size, Integral):
+            raise TypeError("An integer is required as size. Got {}".format(size))
 
         # check argument validity
         if size < 1:
@@ -67,8 +70,6 @@ class Memory:
         self._term_v = None
         self._write_pointer_v = None
         self._total_v = None
-
-        self._length = None
 
         self._scope = scope
         self._has_vars = False
@@ -103,8 +104,6 @@ class Memory:
             # get the control variables
             self._write_pointer_v = tf.get_variable("write_pointer", shape=(), dtype=tf.int32, **kwargs)
             self._total_v = tf.get_variable("total_size", shape=(), dtype=tf.int32, **kwargs)
-
-            self._length = tf.minimum(self._size, self._total_v)
 
             self._scope = scope
             self._has_vars = True
@@ -213,7 +212,8 @@ class Memory:
                  inside it.
         """
         self._prepare_variables()
-        return self._length
+        # we cannot cache this, as length can change during a computation step.
+        return tf.minimum(self._size, self._total_v)
 
     @property
     def capacity(self):
