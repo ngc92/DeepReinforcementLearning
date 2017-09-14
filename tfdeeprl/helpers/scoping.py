@@ -5,16 +5,26 @@ import tensorflow as tf
 logger = logging.getLogger(__name__)
 
 
-def scope_name():
+def scope_name() -> str:
     """Returns the name of current variable scope as a string"""
     return tf.get_variable_scope().name
 
 
-def absolute_scope_name(relative_scope_name):
+def absolute_scope_name(relative_scope_name) -> str:
     """Appends parent scope name to `relative_scope_name`"""
     if scope_name() == "":
         return relative_scope_name
     return scope_name() + "/" + relative_scope_name
+
+
+def absolute_scope(scope) -> tf.VariableScope:
+    """
+    Creates a `tf.VariableScope` object for the scope given by `scope`
+    :param scope: Scope name or VariableScope Object
+    :return:
+    """
+    with tf.variable_scope(scope) as scope:
+        return scope
 
 
 def _get_variables_from_scope(scope, collection):
@@ -54,7 +64,7 @@ def _apply_to_variable_pairs(source, target, operation, log_message="%s <- %s"):
             target_var = target_vars[target]
             if source_var is None:
                 logger.warning("Variable '%s' not found in source scope '%s' for target '%s'",
-                               target, source.name, target_var.name)
+                               target, absolute_scope(source).name, target_var.name)
             else:
                 with tf.name_scope(target):
                     operations.append(operation(source_var, target_var))
@@ -97,7 +107,7 @@ def update_from_scope(source_scope, target_scope, rate, name=None) -> tf.Operati
     rate = tf.convert_to_tensor(rate, name="rate")
 
     def update(source: tf.Variable, target: tf.Variable):
-        new_val = tf.constant(1.0 - rate) * target + rate * source
+        new_val = (1.0 - rate) * target + rate * source
         return target.assign(new_val)
 
     with tf.name_scope(name, "soft_update"):
