@@ -91,3 +91,17 @@ def test_sampling():
     expected = QSample([1], [0], 1, terminal=False, next=[2])
     assert result == expected
 
+
+@in_new_graph
+def test_length_in_loop():
+    memory = Memory(10, (1,), (1,), tf.int32)
+    counter = tf.constant(0)
+
+    def body(ctr: tf.Tensor):
+        with tf.control_dependencies([memory.append([1], [1], 1, False, [1])]):
+            with tf.control_dependencies([tf.assert_equal(memory.length, ctr+1)]):
+                return ctr + 1
+
+    loop = tf.while_loop(lambda x: x < 10, body, [counter])
+    tf.global_variables_initializer().run()
+    assert loop.eval() == 10
