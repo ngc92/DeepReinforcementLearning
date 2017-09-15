@@ -6,7 +6,7 @@ import gym.spaces
 import tensorflow as tf
 
 from .builder import AgentBuilder
-from .helpers.rollout import rollout
+from .helpers.rollout_ops import rollout
 
 
 class Agent:

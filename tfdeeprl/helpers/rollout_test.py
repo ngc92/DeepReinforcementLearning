@@ -5,7 +5,7 @@ import pytest
 import tensorflow as tf
 
 from .utils import in_new_graph
-from .rollout import gym_reset, gym_step, rollout
+from .rollout_ops import gym_reset, gym_step, rollout
 
 
 class MockEnv(gym.Env):

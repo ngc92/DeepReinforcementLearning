@@ -55,10 +55,18 @@ def test_agent_build_train_graph():
 
     # setting up the mocks
     builder = MockBuilder()
+
     def _build_explore(o, params):
         return AgentActSpec(actions=tf.constant(1), metrics={}, is_exploring=True)
+
     def _build_train(o, params):
+        assert "observation" in o
+        assert "action" in o
+        assert "reward" in o
+        assert "terminal" in o
+        assert "next_observation" in o
         return AgentTrainSpec(loss=None, train_op=tf.no_op(), metrics={})
+
     builder._build_explore = mock.Mock(wraps=_build_explore)
     builder._build_train = mock.Mock(wraps=_build_train)
 
@@ -67,7 +75,10 @@ def test_agent_build_train_graph():
 
     params = {1: 5, 2: 10}
     agent = Agent(builder, params=params)
-    agent.build_training_graph(env)
+    r, g = agent.build_training_graph(env)
+
+    assert isinstance(r, tf.Tensor)
+    assert isinstance(g, tf.Graph)
 
     assert builder._build_train.call_count == 1
     assert builder._build_explore.call_count == 1
@@ -75,3 +86,4 @@ def test_agent_build_train_graph():
     assert builder._build_explore.call_args == mock.call(mock.ANY, params=params)
     assert builder._build_train.call_args == mock.call(mock.ANY, params=params)
 
+    # I am not sure how to best test the intricacies of the training loop graph here ...
