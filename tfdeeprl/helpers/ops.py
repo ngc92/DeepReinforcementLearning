@@ -10,7 +10,7 @@ def choose_from_array(source, indices, name="choose_from_array") -> tf.Tensor:
     """
     with tf.name_scope(name, values=[indices, source]):
         indices = tf.convert_to_tensor(indices, name="indices")
-        source = tf.convert_to_tensor(source, name="indices")
+        source = tf.convert_to_tensor(source, name="source")
 
         num_samples = tf.shape(indices)[0]
         indices     = tf.transpose(tf.stack([tf.cast(tf.range(0, num_samples), indices.dtype), indices]))

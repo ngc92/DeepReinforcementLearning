@@ -1,6 +1,7 @@
 from collections import namedtuple
 from numbers import Real, Integral
 from typing import Callable, List, Optional, Dict, Any, Union, Iterable
+import copy
 
 import numpy as np
 import tensorflow as tf
@@ -18,6 +19,9 @@ DQNConfig = namedtuple("DQNConfig", ["double_q", "soft_target", "optimizer"])
 
 
 def make_q_fn(features_fn: FeaturesFunc, num_discrete_actions: Iterable[Integral]) -> QFunc:
+    if not callable(features_fn):
+        raise TypeError("features_fn {} is not callable!".format(features_fn))
+
     flat_actions = np.array(num_discrete_actions).flatten()
     partial_sums = np.cumsum(flat_actions)
     total_actions = flat_actions.sum()
@@ -48,7 +52,7 @@ class DQNBuilder(AgentBuilder):
         self._q_function = make_q_fn(feature_func, num_actions)
         self._target_var_scope = None
         self._network_var_scope = None
-        self.config = config
+        self.config = copy.deepcopy(config)
 
     def _prepare_scopes(self):
         with tf.variable_scope("target_variables") as scope:
@@ -62,6 +66,18 @@ class DQNBuilder(AgentBuilder):
             return self._q_function(state)
 
     def act_fn(self, state: tf.Tensor, epsilon: Optional[tf.Tensor], scope, reuse=None):
+        """
+        Calculates the actions following greedy or epsilon-greedy action selection, given the
+        Q values calculate from `state`. This method expects `state` to be presented in batch form.
+        :param state: Current states. First dimension is batch dimension.
+        :param epsilon: Epsilon-Greedy parameter, a scalar tensor, or None for greedy action selection.
+        :param scope: Variable scope in which the q function is calculated.
+        :param reuse: Whether the VariableScope is in reuse mode.
+        :return tf.Tensor: The actions corresponding to the states.
+        """
+        # ensure that we have a batch dimension
+        state.shape.with_rank_at_least(2)
+
         with tf.variable_scope(scope, reuse=reuse):
             return self._act_fn(state, epsilon)
 
@@ -72,21 +88,21 @@ class DQNBuilder(AgentBuilder):
             actions = [tf.argmax(q, axis=1, name="greedy_action") for q in split_q]
         else:
             actions = [epsilon_greedy(q, epsilon, True) for q in split_q]
-        actions = tf.concat(actions, axis=1, name="concat_actions")
+        actions = tf.stack(actions, axis=1, name="concat_actions")
         return actions
 
-    def assess_actions(self, state: tf.Tensor, actions: tf.Tensor, scope=, reuse=None):
+    def assess_actions(self, state: tf.Tensor, actions: tf.Tensor, scope, reuse=None):
         with tf.variable_scope(scope, reuse=reuse):
             split_q = self._build_q(state)
             q_values = [choose_from_array(q, actions[:, i]) for i, q in enumerate(split_q)]
-            q_values = tf.concat(q_values, axis=1)
+            q_values = tf.stack(q_values, axis=1)
             return q_values
 
-    def assess_state(self, state: tf.Tensor, scope=, reuse=None):
+    def assess_state(self, state: tf.Tensor, scope, reuse=None):
         with tf.variable_scope(scope, reuse=reuse):
             split_q = self._build_q(state)
             q_values = [tf.reduce_max(q, axis=1) for q in split_q]
-            q_values = tf.concat(q_values, axis=1)
+            q_values = tf.stack(q_values, axis=1)
             return q_values
 
     ####################################################################################################################
