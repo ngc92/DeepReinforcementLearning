@@ -93,8 +93,8 @@ def test_act_fn_stochastic():
         actions = builder.act_fn(ph, ep, "test")
 
     build_q.assert_called_once_with(ph)
-    assert egreedy.call_args_list[0] == mock.call(q_vals[0], ep, True)
-    assert egreedy.call_args_list[1] == mock.call(q_vals[1], ep, True)
+    assert egreedy.call_args_list[0] == mock.call(q_vals[0], ep, True, dtype=tf.int64)
+    assert egreedy.call_args_list[1] == mock.call(q_vals[1], ep, True, dtype=tf.int64)
 
     # TODO do an actual check with ep=0, and maybe mock egreedy further to check everything.
 
@@ -111,3 +111,24 @@ def test_act_fn_type_stability():
 
     assert actions_det.dtype == actions_sto.dtype
     assert actions_det.shape == actions_sto.shape
+
+
+@in_new_graph
+def test_build_act_shape():
+    builder = DQNBuilder(lambda x: tf.layers.dense(x, 5), [5, 3], None)
+    ph = tf.placeholder(dtype=tf.float32, shape=(16,))
+
+    action = builder._build_act(ph, {})
+    shape = action.actions.shape  # type: tf.TensorShape
+    shape.assert_has_rank(1)
+
+
+@in_new_graph
+def test_build_explore_shape():
+    builder = DQNBuilder(lambda x: tf.layers.dense(x, 5), [5, 3], None)
+    ph = tf.placeholder(dtype=tf.float32, shape=(16,))
+
+    action = builder._build_explore(ph, {})
+    shape = action.actions.shape  # type: tf.TensorShape
+    shape.assert_has_rank(1)
+

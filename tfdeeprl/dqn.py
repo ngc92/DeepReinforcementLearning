@@ -65,7 +65,7 @@ class DQNBuilder(AgentBuilder):
         with tf.variable_scope("q_values"):
             return self._q_function(state)
 
-    def act_fn(self, state: tf.Tensor, epsilon: Optional[tf.Tensor], scope, reuse=None):
+    def act_fn(self, state: tf.Tensor, epsilon: Optional[tf.Tensor], scope, reuse=None) -> tf.Tensor:
         """
         Calculates the actions following greedy or epsilon-greedy action selection, given the
         Q values calculate from `state`. This method expects `state` to be presented in batch form.
@@ -87,7 +87,7 @@ class DQNBuilder(AgentBuilder):
         if epsilon is None:
             actions = [tf.argmax(q, axis=1, name="greedy_action") for q in split_q]
         else:
-            actions = [epsilon_greedy(q, epsilon, True) for q in split_q]
+            actions = [epsilon_greedy(q, epsilon, True, dtype=tf.int64) for q in split_q]
         actions = tf.stack(actions, axis=1, name="concat_actions")
         return actions
 
@@ -112,6 +112,8 @@ class DQNBuilder(AgentBuilder):
         # add a fake batch dimension
         state_t = tf.expand_dims(observation, 0)
         action = self.act_fn(state_t, None, scope=self._network_var_scope)
+        action.shape.is_compatible_with(tf.TensorShape([1, None]))
+        action = tf.squeeze(action, axis=0)
         return AgentActSpec(actions=action, metrics={}, is_exploring=False)
 
     def _build_explore(self, observation, params):
@@ -120,6 +122,8 @@ class DQNBuilder(AgentBuilder):
         # add a fake batch dimension
         state_t = tf.expand_dims(observation, 0)
         action = self.act_fn(state_t, None, scope=self._network_var_scope)
+        action.shape.is_compatible_with(tf.TensorShape([1, None]))
+        action = tf.squeeze(action, axis=0)
         return AgentActSpec(actions=action, metrics={}, is_exploring=True)
 
     def _build_train(self, transition: Dict[str, tf.Tensor], params):
