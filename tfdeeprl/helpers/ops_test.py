@@ -1,4 +1,5 @@
 import pytest
+from pytest import approx
 import numpy as np
 
 from .ops import *
@@ -42,6 +43,10 @@ def test_epsilon_greedy_greedyness():
     assert list(eg.eval()) == [1, 3, 0, 1]
 
 # TODO test the random part of E-Greedy
+
+#########################################################################################
+#                   TARGET UPDATE
+#########################################################################################
 
 
 def target_update_fixture(f):
@@ -165,3 +170,45 @@ def test_target_update_hard(monkeypatch):
 
 
 # TODO test that the op is added to the correct collections.
+
+
+#######################################################################################
+#                   TD UPDATE
+#######################################################################################
+@in_new_graph
+def test_td_update_checks():
+    td_update([1, 2, 3], [True, False, True], [1.0, 2.0, 5.0], discount=0.8)
+
+    # non-scalar discount
+    with pytest.raises(ValueError):
+        td_update([1, 2, 3], [True, False, True], [1.0, 2.0, 5.0], discount=[1, 8, 8])
+
+    # not vectors
+    with pytest.raises(ValueError):
+        td_update(1, False, 6.0, 0.5)
+
+    # shape mismatch
+    with pytest.raises(ValueError):
+        td_update([1], [False], [6.0, 1.5], 0.5)
+
+    # not a floating point
+    with pytest.raises(TypeError):
+        td_update([1, 2, 3], [True, False, True], [1, 2, 5], discount=0.8)
+
+    # invalid discount
+    with pytest.raises(ValueError):
+        td_update([1, 2, 3], [True, False, True], [1.0, 2.0, 5.0], discount=-0.1)
+
+    with pytest.raises(ValueError):
+        td_update([1, 2, 3], [True, False, True], [1.0, 2.0, 5.0], discount=1.1)
+
+
+@in_new_graph
+def test_td_update_calculation():
+    assert td_update([1, 2, 3], [False, False, True], [1.0, 2.0, 1.0], 1.0).eval() == approx([2.0, 4.0, 3.0])
+    assert td_update([1, 2, 3], [False, False, True], [1.0, 2.0, 1.0], 0.1).eval() == approx([1.1, 2.2, 3.0])
+    assert td_update([1, 2, 3], [False, True, False], [1.0, 2.0, 1.0], 0.0).eval() == approx([1.0, 2.0, 3.0])
+
+    # check that the assert fires for invalid discount factors
+    with pytest.raises(tf.errors.InvalidArgumentError):
+        td_update([1], [False], [1.0], tf.constant(-1.0)).eval()

@@ -114,3 +114,38 @@ def target_net_update(source_scope, target_scope, tau: Optional, interval: Optio
     # this ensures that we always return a tf.Operation
     with tf.control_dependencies([update_target_vars]):
         return tf.no_op()
+
+
+def td_update(reward, terminal, future_value, discount, name=None) -> tf.Tensor:
+    """
+    Calculates the TD update for a batch of data. This is `reward` for terminal states,
+    and `reward + discount * future_value` for non-terminals.
+    :param reward: A vector. The reward at the corresponding time steps.
+    :param terminal: A vector. Whether the states were terminal.
+    :param future_value: A vector. The value predicted at the following time step.
+    :param discount: A scalar. Factor used for discounting `future_value`.
+    :param name: Name of the op.
+    :return: The new value according to the TD update.
+    """
+    with tf.name_scope(name, default_name="td_update", values=[reward, terminal, future_value, discount]):
+        # static args check
+        if isinstance(discount, Number) and not (0.0 <= discount <= 1.0):
+            raise ValueError("discount factor {} not in [0, 1]".format(discount))
+        # args check
+        future_value = tf.convert_to_tensor(future_value)  # type: tf.Tensor
+        reward = tf.convert_to_tensor(reward, dtype=future_value.dtype)
+        terminal = tf.convert_to_tensor(terminal, dtype=tf.bool)
+        discount = tf.convert_to_tensor(discount, dtype=future_value.dtype)
+
+        discount.shape.assert_has_rank(0)
+        terminal.shape.assert_has_rank(1)
+        if not future_value.dtype.is_floating:
+            raise TypeError("value function {} is not of floating point type".format(future_value))
+        if not terminal.shape.is_compatible_with(reward.shape):
+            raise ValueError("reward {} and terminal {} have incompatible shapes".format(reward, terminal))
+        if not terminal.shape.is_compatible_with(future_value.shape):
+            raise ValueError("future_value {} and terminal {} have incompatible shapes".format(future_value, terminal))
+
+        with tf.control_dependencies([tf.assert_non_negative(discount)]):
+            future = tf.where(terminal, x=tf.zeros_like(future_value), y=future_value, name="select_nonterminal")
+            return reward + discount * future
