@@ -77,7 +77,8 @@ def test_agent_build_train_graph():
     agent = Agent(builder, params=params)
     r, g = agent.build_training_graph(env)
 
-    assert isinstance(r, tf.Tensor)
+    assert isinstance(r[0], tf.Tensor)
+    assert isinstance(r[1], tf.Tensor)
     assert isinstance(g, tf.Graph)
 
     assert builder._build_train.call_count == 1

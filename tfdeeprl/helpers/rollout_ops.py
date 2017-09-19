@@ -8,6 +8,7 @@ from collections import namedtuple
 
 
 GymStepResult = namedtuple("GymStepResult", ("observation", "reward", "terminal"))
+GymLoopData = namedtuple("GymLoopData", ("observation", "reward", "terminal", "step_count"))
 
 
 def rollout(env: gym.Env, policy_fn, record_fn: Optional = None):
@@ -15,12 +16,12 @@ def rollout(env: gym.Env, policy_fn, record_fn: Optional = None):
     reward = tf.zeros((), name="reward")
     done = tf.zeros((), dtype=tf.bool)
 
-    loop_data = GymStepResult(state, reward, done)
+    loop_data = GymLoopData(state, reward, done, tf.constant(0, dtype=tf.int64))
 
-    def cond(obs, rew, done):
+    def cond(obs, rew, done, count):
         return tf.logical_not(done)
 
-    def step(obs, rew, done):
+    def step(obs, rew, done, count):
         action = policy_fn(obs)
         result = gym_step(env, action)
         deps = []
@@ -31,11 +32,11 @@ def rollout(env: gym.Env, policy_fn, record_fn: Optional = None):
                 deps.append(record_op)
 
         with tf.control_dependencies(deps):
-            return GymStepResult(result.observation, rew + result.reward, result.terminal)
+            return GymLoopData(result.observation, rew + result.reward, result.terminal, count + 1)
 
-    _, reward, _ = tf.while_loop(cond=cond, body=step, loop_vars=loop_data,
+    _, reward, _, count = tf.while_loop(cond=cond, body=step, loop_vars=loop_data,
                                  back_prop=False, parallel_iterations=10)
-    return reward
+    return reward, count
 
 
 def gym_reset(env: gym.Env) -> tf.Tensor:

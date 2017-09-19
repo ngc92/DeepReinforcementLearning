@@ -149,12 +149,15 @@ def test_rollout():
 
         with tf.control_dependencies([assert_S, assert_A, assert_R, assert_S2, assert_T]):
             return counter.assign_add(1)
-    result = rollout(mock, action_fn, record_fn)
+    reward, count = rollout(mock, action_fn, record_fn)
 
     tf.get_variable_scope().reuse_variables()
     counter_r = tf.get_variable("counter_record", dtype=tf.int32)
 
     tf.global_variables_initializer().run()
 
-    assert result.eval() == 6
+    rew_v, count_v = tf.get_default_session().run([reward, count])
+
+    assert rew_v == 6
+    assert count_v == 3
     assert counter_r.eval() == 3
