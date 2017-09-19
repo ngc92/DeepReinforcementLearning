@@ -8,14 +8,14 @@ import tensorflow as tf
 
 from .helpers.scoping import copy_variables_to_scope
 from .helpers.utils import add_replay_memory
-from .helpers.ops import choose_from_array, epsilon_greedy, target_net_update
+from .helpers.ops import choose_from_array, epsilon_greedy, target_net_update, td_update
 from .builder import AgentBuilder, AgentActSpec, AgentTrainSpec
 
 # mapping state -> features
 FeaturesFunc = Callable[[tf.Tensor], tf.Tensor]
 QFunc = Callable[[tf.Tensor], List[tf.Tensor]]
 
-DQNConfig = namedtuple("DQNConfig", ["double_q", "soft_target", "optimizer"])
+DQNConfig = namedtuple("DQNConfig", ["double_q", "soft_target", "optimizer", "exploration_schedule"])
 
 
 def make_q_fn(features_fn: FeaturesFunc, num_discrete_actions: Iterable[Integral]) -> QFunc:
@@ -121,7 +121,8 @@ class DQNBuilder(AgentBuilder):
 
         # add a fake batch dimension
         state_t = tf.expand_dims(observation, 0)
-        action = self.act_fn(state_t, None, scope=self._network_var_scope)
+        eps = self.config.exploration_schedule(tf.train.get_or_create_global_step())
+        action = self.act_fn(state_t, epsilon=eps, scope=self._network_var_scope)
         action.shape.is_compatible_with(tf.TensorShape([1, None]))
         action = tf.squeeze(action, axis=0)
         return AgentActSpec(actions=action, metrics={}, is_exploring=True)
@@ -150,9 +151,7 @@ class DQNBuilder(AgentBuilder):
         else:
             q_tp1 = self.assess_state(state_tp1, target_scope, reuse=True)
 
-        return_t = reward_t + \
-                   gamma * tf.where(terminal_t, x=tf.zeros_like(q_tp1), y=q_tp1, name="select_nonterminal")
-
+        return_t = td_update(reward_t, terminal_t, q_tp1, gamma, name="td_update")
         return_t = tf.stop_gradient(return_t, "return_t")  # type: tf.Tensor
 
         return_t.shape.assert_is_compatible_with(q_t.shape)

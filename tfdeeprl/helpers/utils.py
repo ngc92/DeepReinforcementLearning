@@ -86,3 +86,32 @@ def add_replay_memory(batch_size=None, memory_size=None):
     return decorator
 
 
+def linear_schedule(initial_value, final_value, start_step, end_step, name=None):
+    """
+    Returns a function that maps a step tensor to a linear interpolation between
+    `initial_value` and `final_value`. Before `start_step` and after `end_step`
+    the value is clipped between `initial_value` and `final_value` respectively.
+    :param initial_value: The value to return before `start_step`.
+    :param final_value: The value to return after `end_step`.
+    :param start_step: The first step at which the value starts interpolating.
+    :param end_step: The lest step of the interpolation.
+    :param name: Name for the op. Defaults to `linear_schedule`.
+    :return: A callable that performs the interpolation.
+    """
+    def schedule(global_step: tf.Tensor) -> tf.Tensor:
+        with tf.name_scope(name, default_name="linear_schedule", values=[global_step, initial_value, final_value,
+                                                                         start_step, end_step]):
+            # convert things to tensors
+            global_step = tf.convert_to_tensor(global_step, name="global_step")
+            start_step_t = tf.convert_to_tensor(start_step, name="start_step", dtype=global_step.dtype)
+            end_step_t = tf.convert_to_tensor(end_step, name="end_step", dtype=global_step.dtype)
+            initial_value_t = tf.convert_to_tensor(initial_value, name="initial_value")
+            final_value_t = tf.convert_to_tensor(final_value, name="final_value")
+
+            duration = tf.cast(end_step_t - start_step_t, final_value_t.dtype)
+            relative = tf.cast(global_step - start_step_t, final_value_t.dtype) / duration
+            relative = tf.clip_by_value(relative, 0.0, 1.0)
+
+            return initial_value_t + (final_value_t - initial_value_t) * relative
+
+    return schedule

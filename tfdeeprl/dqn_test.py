@@ -125,7 +125,8 @@ def test_build_act_shape():
 
 @in_new_graph
 def test_build_explore_shape():
-    builder = DQNBuilder(lambda x: tf.layers.dense(x, 5), [5, 3], None)
+    builder = DQNBuilder(lambda x: tf.layers.dense(x, 5), [5, 3],
+                         DQNConfig(False, True, tf.train.AdamOptimizer(), lambda x: 1.0))
     ph = tf.placeholder(dtype=tf.float32, shape=(16,))
 
     action = builder._build_explore(ph, {})
