@@ -183,6 +183,10 @@ def test_td_update_checks():
     with pytest.raises(ValueError):
         td_update([1, 2, 3], [True, False, True], [1.0, 2.0, 5.0], discount=[1, 8, 8])
 
+    # invalid rank for future value
+    with pytest.raises(ValueError):
+        td_update([1, 2, 3], [True, False, True], tf.zeros((10, 5, 5)), discount=[1, 8, 8])
+
     # not vectors
     with pytest.raises(ValueError):
         td_update(1, False, 6.0, 0.5)
@@ -212,3 +216,12 @@ def test_td_update_calculation():
     # check that the assert fires for invalid discount factors
     with pytest.raises(tf.errors.InvalidArgumentError):
         td_update([1], [False], [1.0], tf.constant(-1.0)).eval()
+
+
+@in_new_graph
+def test_td_update_shape():
+    op = td_update(tf.zeros(10, dtype=tf.float32), tf.zeros(10, tf.bool), tf.zeros((10, 1), tf.float32), 0.99)
+    assert op.shape == tf.TensorShape((10, 1))
+
+    op = td_update(tf.zeros(10, dtype=tf.float32), tf.zeros(10, tf.bool), tf.zeros(10, tf.float32), 0.99)
+    assert op.shape == tf.TensorShape(10)

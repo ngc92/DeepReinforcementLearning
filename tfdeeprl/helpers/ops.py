@@ -122,15 +122,18 @@ def td_update(reward, terminal, future_value, discount, name=None) -> tf.Tensor:
     and `reward + discount * future_value` for non-terminals.
     :param reward: A vector. The reward at the corresponding time steps.
     :param terminal: A vector. Whether the states were terminal.
-    :param future_value: A vector. The value predicted at the following time step.
+    :param future_value: A vector or matrix. The value predicted at the following time step. Use a
+                         vector if the future values are only scalars, and a matrix of shape [BATCH, ACTION_DIMS]
+                         otherwise.
     :param discount: A scalar. Factor used for discounting `future_value`.
     :param name: Name of the op.
-    :return: The new value according to the TD update.
+    :return: The new value according to the TD update. Has the same shape as `future_value`.
     """
     with tf.name_scope(name, default_name="td_update", values=[reward, terminal, future_value, discount]):
         # static args check
         if isinstance(discount, Number) and not (0.0 <= discount <= 1.0):
             raise ValueError("discount factor {} not in [0, 1]".format(discount))
+
         # args check
         future_value = tf.convert_to_tensor(future_value)  # type: tf.Tensor
         reward = tf.convert_to_tensor(reward, dtype=future_value.dtype)
@@ -139,13 +142,21 @@ def td_update(reward, terminal, future_value, discount, name=None) -> tf.Tensor:
 
         discount.shape.assert_has_rank(0)
         terminal.shape.assert_has_rank(1)
+
         if not future_value.dtype.is_floating:
             raise TypeError("value function {} is not of floating point type".format(future_value))
         if not terminal.shape.is_compatible_with(reward.shape):
             raise ValueError("reward {} and terminal {} have incompatible shapes".format(reward, terminal))
-        if not terminal.shape.is_compatible_with(future_value.shape):
-            raise ValueError("future_value {} and terminal {} have incompatible shapes".format(future_value, terminal))
 
         with tf.control_dependencies([tf.assert_non_negative(discount)]):
-            future = tf.where(terminal, x=tf.zeros_like(future_value), y=future_value, name="select_nonterminal")
+            future = tf.where(terminal, x=tf.zeros_like(future_value), y=future_value, name="select_nonterminal")  # type: tf.Tensor
+
+            # OK, now we have to be careful about dimensions. If we act on vector future_value, reward has to be a
+            # vector, otherwise we need to match ranks
+            if future.shape.ndims == 1:
+                pass
+            elif future.shape.ndims == 2:
+                reward = tf.expand_dims(reward, 1)
+            else:
+                raise ValueError("Invalid rank of future_value {}".format(future_value))
             return reward + discount * future
