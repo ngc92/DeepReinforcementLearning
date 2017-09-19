@@ -56,12 +56,14 @@ class Agent:
 
     def train(self, env: gym.Env, max_episodes: int):
         returns = []
+        durations = []
         rollout_op, g = self.build_training_graph(env)
         with tf.Session(graph=g) as session:
             tf.global_variables_initializer().run()
             for i in range(max_episodes):
                 # get action
-                return_ = session.run(rollout_op)
+                return_, duration = session.run(rollout_op)
 
                 returns.append(return_)
-        return returns
+                durations.append(duration)
+        return returns, durations

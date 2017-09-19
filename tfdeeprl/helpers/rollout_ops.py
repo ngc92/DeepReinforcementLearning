@@ -35,7 +35,7 @@ def rollout(env: gym.Env, policy_fn, record_fn: Optional = None):
             return GymLoopData(result.observation, rew + result.reward, result.terminal, count + 1)
 
     _, reward, _, count = tf.while_loop(cond=cond, body=step, loop_vars=loop_data,
-                                 back_prop=False, parallel_iterations=10)
+                                        back_prop=False, parallel_iterations=10)
     return reward, count
 
 

@@ -39,14 +39,15 @@ def test_agent_train():
     # we mock up the training graph, so this test remains quite simple
     def build_training_graph(e):
         with tf.Graph().as_default() as graph:
-            return_ = tf.constant(5.0)
+            return_ = (tf.constant(5.0), tf.constant(3, tf.int64))
             return return_, graph
 
     agent = Agent(MockBuilder())
     agent.build_training_graph = build_training_graph
 
-    returns = agent.train(gym.Env(), 10)
+    returns, durations = agent.train(gym.Env(), 10)
     assert list(returns) == [5.0] * 10
+    assert list(durations) == [3] * 10
 
 
 @in_new_graph
