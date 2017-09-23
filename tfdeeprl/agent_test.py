@@ -35,21 +35,6 @@ def test_agent_params_protection():
     assert agent.params == {1: 5, 2: []}
 
 
-def test_agent_train():
-    # we mock up the training graph, so this test remains quite simple
-    def build_training_graph(e):
-        with tf.Graph().as_default() as graph:
-            return_ = (tf.constant(5.0), tf.constant(3, tf.int64))
-            return return_, graph
-
-    agent = Agent(MockBuilder())
-    agent.build_training_graph = build_training_graph
-
-    returns, durations = agent.train(gym.Env(), 10)
-    assert list(returns) == [5.0] * 10
-    assert list(durations) == [3] * 10
-
-
 @in_new_graph
 def test_agent_build_train_graph():
     import gym.spaces
@@ -78,8 +63,8 @@ def test_agent_build_train_graph():
     agent = Agent(builder, params=params)
     r, g = agent.build_training_graph(env)
 
-    assert isinstance(r[0], tf.Tensor)
-    assert isinstance(r[1], tf.Tensor)
+    assert isinstance(r["return"], tf.Tensor)
+    assert isinstance(r["duration"], tf.Tensor)
     assert isinstance(g, tf.Graph)
 
     assert builder._build_train.call_count == 1
@@ -89,3 +74,49 @@ def test_agent_build_train_graph():
     assert builder._build_train.call_args == mock.call(mock.ANY, params=params)
 
     # I am not sure how to best test the intricacies of the training loop graph here ...
+
+
+def test_agent_train_loop():
+    # we mock up the training graph, so this test remains quite simple
+    def build_training_graph(e):
+        with tf.Graph().as_default() as graph:
+            return_ = {"return": tf.constant(5.0), "duration": tf.constant(3, tf.int64)}
+            return return_, graph
+
+    agent = Agent(MockBuilder())
+    agent.build_training_graph = build_training_graph
+
+    returns, durations = agent.train(gym.Env(), 10)
+    assert list(returns) == [5.0] * 10
+    assert list(durations) == [3] * 10
+
+
+@in_new_graph
+def test_agent_train_session_setup():
+    # check that the session is created in the correct graph
+    builder = MockBuilder()
+    agent = Agent(builder)
+
+    agent.build_training_graph = mock.Mock()
+
+    target_graph = tf.Graph()
+    mock_session = mock.MagicMock()
+    def check_is_target(*args, **kwargs):
+        assert tf.get_default_graph() == target_graph
+        mocked = mock.MagicMock()
+        mocked.__enter__.return_value = mock_session
+        return mocked
+
+    train_ops = mock.Mock()
+    agent.build_training_graph.return_value = ([train_ops], target_graph)
+
+    with mock.patch("tfdeeprl.agent.tf.train.SingularMonitoredSession", side_effect=check_is_target) as mock_session_fn:
+        mock_session.run.return_value = {"return": 8.0, "duration": 5}
+        returns, durations = agent.train(mock.create_autospec(gym.Env()), 1)
+
+        # now the checks
+        mock_session_fn.assert_called_once_with(checkpoint_dir=agent.model_dir, hooks=mock.ANY)
+        mock_session.run.assert_called_once_with([train_ops])
+
+        assert returns == [8.0]
+        assert durations == [5]

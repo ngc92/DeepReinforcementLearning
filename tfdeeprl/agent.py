@@ -52,18 +52,25 @@ class Agent:
                 return spec.train_op
 
             rollout_op = rollout(env, explore_fn, record_fn)
-        return rollout_op, g
+
+        result = {"return": rollout_op[0], "duration": rollout_op[1]}
+        return result, g
 
     def train(self, env: gym.Env, max_episodes: int):
         returns = []
         durations = []
-        rollout_op, g = self.build_training_graph(env)
-        with tf.Session(graph=g) as session:
-            tf.global_variables_initializer().run()
-            for i in range(max_episodes):
-                # get action
-                return_, duration = session.run(rollout_op)
+        result_op, g = self.build_training_graph(env)
 
-                returns.append(return_)
-                durations.append(duration)
-        return returns, durations
+        # TODO make this frequency configurable
+        episode_logger = tf.train.LoggingTensorHook(result_op, 10)
+        checkpoint_saver = tf.train.CheckpointSaverHook(checkpoint_dir=self.model_dir, save_secs=60)
+        with g.as_default():
+            with tf.train.SingularMonitoredSession(checkpoint_dir=self.model_dir,
+                                                   hooks=[episode_logger, checkpoint_saver]) as session:
+                for i in range(max_episodes):
+                    # get action
+                    result_val = session.run(result_op)
+
+                    returns.append(result_val["return"])
+                    durations.append(result_val["duration"])
+            return returns, durations
