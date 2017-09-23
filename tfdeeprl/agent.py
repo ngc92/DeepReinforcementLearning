@@ -1,5 +1,6 @@
 import copy
 import tempfile
+from typing import Tuple, Dict
 
 import gym
 import gym.spaces
@@ -35,7 +36,7 @@ class Agent:
     def params(self):
         return copy.deepcopy(self._params)
 
-    def build_training_graph(self, env: gym.Env):
+    def build_training_graph(self, env: gym.Env) -> Tuple[Dict, tf.Graph]:
         with tf.Graph().as_default() as g:
             def explore_fn(observation):
                 act_spec = self._builder.explore(observation, params=self.params)
@@ -61,10 +62,11 @@ class Agent:
         durations = []
         result_op, g = self.build_training_graph(env)
 
-        # TODO make this frequency configurable
-        episode_logger = tf.train.LoggingTensorHook(result_op, 10)
-        checkpoint_saver = tf.train.CheckpointSaverHook(checkpoint_dir=self.model_dir, save_secs=60)
         with g.as_default():
+            # TODO make this frequency configurable
+            episode_logger = tf.train.LoggingTensorHook(result_op, 10)
+            checkpoint_saver = tf.train.CheckpointSaverHook(checkpoint_dir=self.model_dir, save_secs=60)
+
             with tf.train.SingularMonitoredSession(checkpoint_dir=self.model_dir,
                                                    hooks=[episode_logger, checkpoint_saver]) as session:
                 for i in range(max_episodes):
