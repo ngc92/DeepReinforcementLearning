@@ -136,6 +136,9 @@ def td_update(reward, terminal, future_value, discount, name=None) -> tf.Tensor:
 
         # args check
         future_value = tf.convert_to_tensor(future_value)  # type: tf.Tensor
+        if not future_value.dtype.is_floating:
+            raise TypeError("value function {} is not of floating point type".format(future_value))
+
         reward = tf.convert_to_tensor(reward, dtype=future_value.dtype)
         terminal = tf.convert_to_tensor(terminal, dtype=tf.bool)
         discount = tf.convert_to_tensor(discount, dtype=future_value.dtype)
@@ -143,8 +146,6 @@ def td_update(reward, terminal, future_value, discount, name=None) -> tf.Tensor:
         discount.shape.assert_has_rank(0)
         terminal.shape.assert_has_rank(1)
 
-        if not future_value.dtype.is_floating:
-            raise TypeError("value function {} is not of floating point type".format(future_value))
         if not terminal.shape.is_compatible_with(reward.shape):
             raise ValueError("reward {} and terminal {} have incompatible shapes".format(reward, terminal))
 

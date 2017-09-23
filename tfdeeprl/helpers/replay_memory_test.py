@@ -20,8 +20,16 @@ def test_init_args_check():
     with pytest.raises(ValueError):
         Memory(10, (10,), (10,), tf.string)
 
+    # invalid action type
     with pytest.raises(TypeError):
         Memory(10, (10,), (10,), "?")
+
+    # non-integral size
+    with pytest.raises(TypeError):
+        Memory(0.5, (10,), (10,), tf.int64)
+
+    memory = Memory(10, (10,), (10,), tf.int64)
+    assert memory.capacity == 10
 
 
 @in_new_graph
@@ -62,6 +70,19 @@ def test_sample_empty():
     with pytest.raises(tf.errors.InvalidArgumentError):
         tf.get_default_session().run(sample)
 
+
+@in_new_graph
+def test_sample_non_integral():
+    memory = Memory(10, (10,), (1,), tf.int32)
+
+    with pytest.raises(TypeError):
+        sample = memory.sample(0.5)
+
+    with pytest.raises(ValueError):
+        sample = memory.sample(-5)
+
+    with pytest.raises(ValueError):
+        sample = memory.sample(tf.ones((5, 2), dtype=tf.int64))
 
 @in_new_graph
 def test_length():

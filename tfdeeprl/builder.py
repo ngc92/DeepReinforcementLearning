@@ -8,7 +8,7 @@ AgentActSpec_ = namedtuple("AgentActSpec_", ["actions", "metrics", "is_exploring
 
 
 class AgentActSpec(AgentActSpec_):
-    def __new__(cls, *, actions, metrics, is_exploring):
+    def __new__(cls, *, actions, metrics=None, is_exploring):
         if metrics is None:
             metrics = {}
         if not isinstance(actions, tf.Tensor):
@@ -60,8 +60,8 @@ class AgentBuilder:
         if not isinstance(actor, AgentActSpec):
             raise TypeError("_explore is supposed to return AgentActSpec, got {}".format(actor))
 
-        if actor.actions is None:
-            raise ValueError("No actions specified in AgentActSpec")
+        assert actor.actions is not None
+
         if not actor.is_exploring:
             raise ValueError("Exploration disabled in explore mode.")
         return actor

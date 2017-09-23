@@ -74,6 +74,16 @@ def test_step_checks():
         gym_step(mock, action)
 
     # TODO add tests for other action spaces
+    mock.action_space = gym.spaces.Box(0, 1, (2, 2))
+    with pytest.raises(TypeError):
+        gym_step(mock, tf.placeholder(tf.int64))
+    with pytest.raises(ValueError):
+        gym_step(mock, tf.placeholder(tf.float32, shape=(1, 1)))
+
+
+    mock.observation_space = gym.spaces.Tuple([])
+    with pytest.raises(NotImplementedError):
+        gym_step(mock, tf.placeholder(tf.float32, shape=(2, 2)))
 
 
 @in_new_graph
@@ -161,3 +171,7 @@ def test_rollout():
     assert rew_v == 6
     assert count_v == 3
     assert counter_r.eval() == 3
+
+    reward, count = rollout(mock, action_fn)
+    tf.global_variables_initializer().run()
+    assert tf.get_default_session().run([reward, count]) == [6.0, 3]

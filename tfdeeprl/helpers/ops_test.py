@@ -206,6 +206,14 @@ def test_td_update_checks():
     with pytest.raises(ValueError):
         td_update([1, 2, 3], [True, False, True], [1.0, 2.0, 5.0], discount=1.1)
 
+    # different shape for terminal and reward
+    with pytest.raises(ValueError):
+        td_update([1, 2], [True, False, True], [1.0, 2.0, 5.0], discount=0.8)
+
+    # wrong rank for future_value
+    with pytest.raises(ValueError):
+        td_update([1, 2, 3], [True, False, True], np.zeros((3,3,3)), discount=0.8)
+
 
 @in_new_graph
 def test_td_update_calculation():

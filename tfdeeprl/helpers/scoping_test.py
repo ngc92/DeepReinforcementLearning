@@ -83,6 +83,9 @@ def test_vars_from_scope():
         assert _get_variables_from_scope("b", tf.GraphKeys.GLOBAL_VARIABLES) == {b}
         assert _get_variables_from_scope(c_scope, tf.GraphKeys.GLOBAL_VARIABLES) == {c}
 
+    # check that global scope works correctly
+    assert _get_variables_from_scope(tf.get_variable_scope(), tf.GraphKeys.GLOBAL_VARIABLES) == {a, b, c, bait}
+
 
 @in_new_graph
 def test_assign_from_scope():
@@ -119,6 +122,23 @@ def test_assign_from_scope():
     # do not assign from non_variables
     assign_from_scope(scope, target_scope, name="test_assign").run()
     assert (constant_.eval() == 12).all()
+
+
+@in_new_graph
+def test_assign_from_global_scope():
+    a = tf.get_variable("A", shape=(13,), dtype=tf.float32, initializer=tf.constant_initializer(5))
+    with tf.variable_scope("c") as target_scope:
+        a_ = tf.get_variable("A", shape=(13,), dtype=tf.float32, initializer=tf.constant_initializer(12))
+
+    tf.global_variables_initializer().run()
+
+    assert (a.eval() != a_.eval()).any()
+
+    asg = assign_from_scope("", "c", name="test_assign")
+    asg.run()
+
+    assert (a.eval() == a_.eval()).all()
+    assert (a.eval() == 5).all()
 
 
 @in_new_graph

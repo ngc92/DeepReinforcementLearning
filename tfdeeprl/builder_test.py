@@ -23,6 +23,9 @@ def test_act_spec_type_checks():
         a = AgentActSpec(actions=tf.placeholder(tf.float32), metrics={}, is_exploring="NOT A BOOL")
     with pytest.raises(TypeError):
         a = AgentActSpec(actions=tf.placeholder(tf.float32), metrics=True, is_exploring=False)
+    # not setting metrics should be fine
+    a = AgentActSpec(actions=tf.placeholder(tf.float32), is_exploring=True)
+    assert a.metrics == {}
 
 
 @in_new_graph
@@ -69,11 +72,11 @@ def test_build_explore_errors():
     with pytest.raises(TypeError):
         builder.explore([], {})
 
-    builder._build_explore = mock.Mock(return_value=AgentActSpec(actions=aph, metrics={}, is_exploring=True))
+    builder._build_explore = mock.Mock(return_value=AgentActSpec(actions=aph, is_exploring=True))
     # this works
     builder.explore([], {})
 
-    builder._build_explore = mock.Mock(return_value=AgentActSpec(actions=aph, metrics={}, is_exploring=False))
+    builder._build_explore = mock.Mock(return_value=AgentActSpec(actions=aph, is_exploring=False))
     # we expect that exploring is disabled here.
     with pytest.raises(ValueError):
         builder.explore([], {})

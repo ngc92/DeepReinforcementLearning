@@ -40,7 +40,8 @@ def rollout(env: gym.Env, policy_fn, record_fn: Optional = None):
 
 
 def gym_reset(env: gym.Env) -> tf.Tensor:
-    def reset():
+    # coverage test does not correctly recognize function called from within tensorflow
+    def reset():  # pragma: no cover
         return np.array(env.reset()).astype(np.float32)
 
     reset_op = tf.py_func(reset, [], tf.float32, True, name="reset")  # type: tf.Tensor
@@ -63,7 +64,8 @@ def gym_step(env: gym.Env, action: tf.Tensor):
         # TODO treat scalars as 1 element vectors
         action.shape.assert_is_compatible_with([1])
 
-    def step(action):
+    # coverage test does not correctly recognize function called from within tensorflow
+    def step(action):  # pragma: no cover
         obs, rew, done, info = env.step(action)
         return np.array(obs).astype(np.float32), np.float32(rew), bool(done)
 

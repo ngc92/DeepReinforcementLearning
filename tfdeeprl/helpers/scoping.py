@@ -30,7 +30,9 @@ def _get_variables_from_scope(scope, collection):
         pass
 
     # include the trailing / to exclude matches by name
-    variables = tf.get_collection(collection, scope=scope.name+"/")
+    # except when scope is the global scope ""
+    separator = "/" if scope.name is not "" else ""
+    variables = tf.get_collection(collection, scope=scope.name+separator)
 
     return set(filter(lambda x: isinstance(x, tf.Variable), variables))
 
