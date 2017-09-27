@@ -8,10 +8,16 @@ from .helpers.utils import in_new_graph
 def test_init():
     # expected callable
     with pytest.raises(TypeError):
-        builder = DQNBuilder(None, [10, 5], None)
+        builder = DQNBuilder(None, [10, 5], DQNConfig())
 
+    # expect DQNConfig
+    with pytest.raises(TypeError):
+        builder = DQNBuilder(lambda: 5, [10, 5], None)
 
-    # TODO config test
+    with mock.patch("tfdeeprl.dqn.make_q_fn") as qfn:
+        f = lambda x: 0
+        builder = DQNBuilder(f, [10, 5], DQNConfig())
+        qfn.assert_called_once_with(f)
 
 
 @in_new_graph

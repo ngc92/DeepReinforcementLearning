@@ -52,6 +52,8 @@ class DQNBuilder(AgentBuilder):
         self._q_function = make_q_fn(feature_func, num_actions)
         self._target_var_scope = None
         self._network_var_scope = None
+        if not isinstance(config, DQNConfig):
+            raise TypeError("Expect config ({}) to be of type DQNConfig but got {}".format(config, type(config)))
         self.config = copy.deepcopy(config)
 
     def _prepare_scopes(self):
