@@ -81,7 +81,11 @@ class DQNBuilder(AgentBuilder):
         with tf.variable_scope(scope, reuse=reuse):
             return self._act_fn(state, epsilon)
 
-    def _act_fn(self, state: tf.Tensor, epsilon: Optional[tf.Tensor]):
+    def _act_fn(self, state: tf.Tensor, epsilon: Optional[tf.Tensor]) -> tf.Tensor:
+        """
+        Internal function that builds the actor using the current variable scope.
+        See `act_fn` for the public interface.
+        """
         # epsilon greedy action selection
         split_q = self._build_q(state)
         if epsilon is None:
@@ -92,6 +96,14 @@ class DQNBuilder(AgentBuilder):
         return actions
 
     def assess_actions(self, state: tf.Tensor, actions: tf.Tensor, scope, reuse=None):
+        """
+        Uses the Q function to assess the Q-Value of the (state, actions) pairs given here.
+        :param state: States
+        :param actions: Actions. Shapes [BATCH_SIZE, NUM_ACTIONS]
+        :param scope: Variable scope used to build the Q function.
+        :param reuse: Whether variables should be reused.
+        :return: The Q-Values of the state-action pairs.
+        """
         with tf.variable_scope(scope, reuse=reuse):
             split_q = self._build_q(state)
             q_values = [choose_from_array(q, actions[:, i]) for i, q in enumerate(split_q)]
