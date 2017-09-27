@@ -4,6 +4,7 @@ python:
 install:
   - pip install tensorflow
   - pip install gym
+  - pip install pytest-cov
 
 script:
-  py.test --cov
+  py.test --cov --cov-report html
