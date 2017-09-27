@@ -63,8 +63,10 @@ class Agent:
         result_op, g = self.build_training_graph(env)
 
         with g.as_default():
+            # ensure we have a global step
+            global_step = tf.train.get_or_create_global_step()
             # TODO make this frequency configurable
-            episode_logger = tf.train.LoggingTensorHook(result_op, 10)
+            episode_logger = tf.train.LoggingTensorHook(result_op, every_n_iter=10)
             checkpoint_saver = tf.train.CheckpointSaverHook(checkpoint_dir=self.model_dir, save_secs=60)
 
             with tf.train.SingularMonitoredSession(checkpoint_dir=self.model_dir,
