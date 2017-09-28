@@ -15,7 +15,16 @@ from .builder import AgentBuilder, AgentActSpec, AgentTrainSpec
 FeaturesFunc = Callable[[tf.Tensor], tf.Tensor]
 QFunc = Callable[[tf.Tensor], List[tf.Tensor]]
 
-DQNConfig = namedtuple("DQNConfig", ["double_q", "soft_target", "optimizer", "exploration_schedule"])
+
+class DQNConfig(namedtuple("_DQNConfig", ["exploration_schedule", "optimizer", "double_q", "soft_target"])):
+    def __new__(cls, exploration_schedule, optimizer, double_q, soft_target=True):
+        if not callable(exploration_schedule):
+            raise TypeError("exploration_schedule {} is not a callable".format(exploration_schedule))
+
+        if not isinstance(optimizer, tf.train.Optimizer):
+            raise TypeError("Expected optimizer {} to be of type tf.train.Optimizer, got {}".format(optimizer,
+                                                                                                    type(optimizer)))
+        return super(DQNConfig, cls).__new__(cls, exploration_schedule, optimizer, double_q, soft_target)
 
 
 def make_q_fn(features_fn: FeaturesFunc, num_discrete_actions: Iterable[Integral]) -> QFunc:
@@ -55,6 +64,8 @@ class DQNBuilder(AgentBuilder):
         if not isinstance(config, DQNConfig):
             raise TypeError("Expect config ({}) to be of type DQNConfig but got {}".format(config, type(config)))
         self.config = copy.deepcopy(config)
+
+        self._has_value_net = False
 
     def _prepare_scopes(self):
         with tf.variable_scope("target_variables") as scope:
@@ -125,7 +136,8 @@ class DQNBuilder(AgentBuilder):
 
         # add a fake batch dimension
         state_t = tf.expand_dims(observation, 0)
-        action = self.act_fn(state_t, None, scope=self._network_var_scope)
+        action = self.act_fn(state_t, None, scope=self._network_var_scope, reuse=self._has_value_net)
+        self._has_value_net = True
         action.shape.is_compatible_with(tf.TensorShape([1, None]))
         action = tf.squeeze(action, axis=0)
         return AgentActSpec(actions=action, metrics={}, is_exploring=False)
@@ -136,7 +148,8 @@ class DQNBuilder(AgentBuilder):
         # add a fake batch dimension
         state_t = tf.expand_dims(observation, 0)
         eps = self.config.exploration_schedule(tf.train.get_or_create_global_step())
-        action = self.act_fn(state_t, epsilon=eps, scope=self._network_var_scope)
+        action = self.act_fn(state_t, epsilon=eps, scope=self._network_var_scope, reuse=self._has_value_net)
+        self._has_value_net = True
         action.shape.is_compatible_with(tf.TensorShape([1, None]))
         action = tf.squeeze(action, axis=0)
         return AgentActSpec(actions=action, metrics={}, is_exploring=True)
@@ -150,11 +163,8 @@ class DQNBuilder(AgentBuilder):
         reward_t = transition["reward"]  # shape: (Batch)
         terminal_t = transition["terminal"]  # shape: (Batch)
 
-        # get relevant data from params
-        gamma = scalar_param("gamma", params, 0.99)
-
         # calculate the Q values using the current weights
-        q_t = self.assess_actions(state_t, action_t, scope=self._network_var_scope, reuse=True)
+        q_t = self.assess_actions(state_t, action_t, scope=self._network_var_scope, reuse=self._has_value_net)
 
         # prepare target network
         target_scope, target_vars = copy_variables_to_scope(self._network_var_scope, self._target_var_scope,
@@ -165,15 +175,18 @@ class DQNBuilder(AgentBuilder):
         else:
             q_tp1 = self.assess_state(state_tp1, target_scope, reuse=True)
 
+        # get relevant data from params
+        gamma = scalar_param("gamma", params, 0.99)
+
         return_t = td_update(reward_t, terminal_t, q_tp1, gamma, name="td_update")
         return_t = tf.stop_gradient(return_t, "return_t")  # type: tf.Tensor
 
         return_t.shape.assert_is_compatible_with(q_t.shape)
 
-        loss = tf.losses.huber_loss(q_t, tf.stop_gradient(return_t), reduction=tf.losses.Reduction.MEAN)
+        loss = tf.losses.huber_loss(labels=q_t, predictions=return_t, reduction=tf.losses.Reduction.MEAN)
 
         optimizer = self.config.optimizer  # type: tf.train.Optimizer
-        train_step = optimizer.minimize(loss, tf.train.get_global_step(tf.get_default_graph()))
+        train_step = optimizer.minimize(loss, tf.train.get_or_create_global_step())
 
         if self.config.soft_target:
             tau = scalar_param("tau", params, 1e-3)

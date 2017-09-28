@@ -51,6 +51,7 @@ def add_replay_memory(batch_size=None, memory_size=None):
         # noinspection PyProtectedMember
         old_build_train = builder_class._build_train
 
+        @functools.wraps(old_build_train)
         def build_train(self: builder_class, transitions, params):
             state = transitions["observation"]
             action = transitions["action"]

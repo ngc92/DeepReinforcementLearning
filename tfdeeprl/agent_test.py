@@ -56,7 +56,7 @@ def test_agent_build_train_graph():
     builder._build_explore = mock.Mock(wraps=_build_explore)
     builder._build_train = mock.Mock(wraps=_build_train)
 
-    env = mock.create_autospec(gym.Env(),)
+    env = mock.MagicMock()
     env.observation_space = gym.spaces.Box(0, 1, shape=(1,))
 
     params = {1: 5, 2: 10}
@@ -112,7 +112,7 @@ def test_agent_train_session_setup():
 
     with mock.patch("tfdeeprl.agent.tf.train.SingularMonitoredSession", side_effect=check_is_target) as mock_session_fn:
         mock_session.run.return_value = {"return": 8.0, "duration": 5}
-        returns, durations = agent.train(mock.create_autospec(gym.Env()), 1)
+        returns, durations = agent.train(mock.MagicMock(), 1)
 
         # now the checks
         mock_session_fn.assert_called_once_with(checkpoint_dir=agent.model_dir, hooks=mock.ANY)
